@@ -23,21 +23,17 @@ RegisterCommand(
     false
 );
 
-
-
 RegisterCommand(
     "tp",
     async (source: number, args: string[], rawCommand: string) => {
-        places.forEach((p) => {
-            if (args[0] === p.name) {
-                StartPlayerTeleport(PlayerId(), p.x, p.y, p.z, 1, true, true, true);
-                return;
-            }
-        });
-
-        AddTextEntry("CUSTOM_ENTRY", "No position found! Check input");
-        BeginTextCommandDisplayHelp("CUSTOM_ENTRY");
-        EndTextCommandDisplayHelp(0, false, true, -1);
+        let p = null;
+        if ((p = places.find((place) => place.name === args[0]))) {
+            StartPlayerTeleport(PlayerId(), p.x, p.y, p.z, 1, true, true, true);
+        } else {
+            AddTextEntry("CUSTOM_ENTRY", "No position found! Check input");
+            BeginTextCommandDisplayHelp("CUSTOM_ENTRY");
+            EndTextCommandDisplayHelp(0, false, true, -1);
+        }
     },
     false
 );
@@ -57,12 +53,11 @@ on("CEventOpenDoor", (entity: number, object_hash: number, object_name: string) 
     const args = {
         entity,
         object_hash,
-        object_name
-    }
+        object_name,
+    };
 
-    test(args)
+    test(args);
 });
-
 
 const whoOpened = (name: string) => {
     const pName = GetPlayerName(PlayerId());
@@ -72,6 +67,27 @@ const whoOpened = (name: string) => {
 const test = (...args: any[]) => {
     emitNet("server:Test", args);
 };
+
+on("onClientGameTypeStart", () => {
+    exports.spawnmanager.setAutoSpawnCallback(() => {
+        exports.spawnmanager.spawnPlayer(
+            {
+                x: 686.245,
+                y: 577.95,
+                z: 130.461,
+                model: "a_m_m_skater_01",
+            },
+            () => {
+                emit("chat:addMessage", {
+                    args: ["Hi, there!"],
+                });
+            }
+        );
+    });
+
+    exports.spawnmanager.setAutoSpawn(true);
+    exports.spawnmanager.forceRespawn();
+});
 
 setImmediate(() => {
     emit("chat:addSuggestion", "/greet", "Run this to say yo to other player", [
