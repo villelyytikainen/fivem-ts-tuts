@@ -12,71 +12,81 @@ const waitForCar = async (hash: number) => {
     }
 };
 
-RegisterCommand(
-    "c",
-    async (source: number, args: string[], rawCommand: string) => {
-        const [model] = args;
-        const modelHash = GetHashKey(model);
+const focusOnNui = async (source: number, args: string[], rawCommand: string) => {
+    SetNuiFocus(true, true);
+    await Delay(5000);
+    SetNuiFocus(false, false);
+};
 
-        if (!IsModelAVehicle(modelHash)) return;
-        await waitForCar(modelHash);
-        const [x, y, z] = GetEntityCoords(PlayerPedId(), true);
-        const h = GetEntityHeading(PlayerPedId());
-        const veh = CreateVehicle(modelHash, x, y, z, h, true, true);
+const spawnCar = async (source: number, args: string[], rawCommand: string): Promise<void> => {
+    const [model] = args;
+    const modelHash = GetHashKey(model);
 
-        while (!DoesEntityExist(veh)) await Delay(100);
+    if (!IsModelAVehicle(modelHash)) return;
+    await waitForCar(modelHash);
+    const [x, y, z] = GetEntityCoords(PlayerPedId(), true);
+    const h = GetEntityHeading(PlayerPedId());
+    const veh = CreateVehicle(modelHash, x, y, z, h, true, true);
 
-        SetPedIntoVehicle(PlayerPedId(), veh, -1);
-    },
-    false
-);
+    while (!DoesEntityExist(veh)) await Delay(100);
 
-RegisterCommand(
-    "killme",
-    () => {
-        // PlayEntityAnim(PlayerPedId(),"idle","mp_sleep", 2,false,false,true, 2,0);
-        // ClearPedTasks(PlayerPedId());
-        // TaskPlayAnim(PlayerPedId(), "mp_suicide", "pill", 8.0, 8.0, -1, 128, 1, false, false, false);
-        SetEntityHealth(PlayerPedId(), 0);
-    },
-    false
-);
+    SetPedIntoVehicle(PlayerPedId(), veh, -1);
+};
 
-RegisterCommand(
-    "tp",
-    async (source: number, args: string[], rawCommand: string) => {
-        args[0] = args[0].split(" ").join("");
+const assignWantedLevel = async (source: number, args: string[], rawCommand: string): Promise<void> => {
+    const level: number = args.length > 0 ? Number(args[0]) : 0;
+    SetPlayerWantedLevel(PlayerId(), level, false);
+    SetPlayerWantedLevelNow(PlayerId(), true);
+};
 
-        const p = places.find((place) => place.name === args[0]) ?? null;
-        if (p) {
-            StartPlayerTeleport(PlayerId(), p.x, p.y, p.z, 1, true, true, true);
-        } else {
-            const [x = 0, y = 0, z = 0] = (args[0] || "").split(",");
-            const pos = { x, y, z };
+const resetSettings = async (source: number, args: string[], rawCommand: string): Promise<void> => {
+    AddTextEntry("CUSTOM_ENTRY", "Settings reseted");
+    BeginTextCommandDisplayHelp("CUSTOM_ENTRY");
+    EndTextCommandDisplayHelp(0, false, true, -1);
+};
 
-            // AddTextEntry("CUSTOM_ENTRY", `Position is now: ${JSON.stringify(pos)}`);
-            // BeginTextCommandDisplayHelp("CUSTOM_ENTRY");
-            // EndTextCommandDisplayHelp(0, false, true, -1);
+const spawnWeapon = async (source: number, args: string[], rawCommand: string): Promise<void> => {
+    const weaponName = `WEAPON_${args[0]}`;
+    const weaponHash = GetHashKey(weaponName);
+    GiveWeaponToPed(PlayerPedId(), weaponHash, 100, false, true);
+};
 
-            console.log(pos);
+const setCameraUndRemoveReticle = async (source: number, args: string[], rawCommand: string): Promise<void> => {
+    SetHudComponentSize(14, 0, 0);
+    SetPlayerHealthRechargeMultiplier(PlayerId(), 0);
+    DisableIdleCamera(true);
+    SetFollowPedCamViewMode(4);
+};
 
-            StartPlayerTeleport(PlayerId(), Number(pos.x), Number(pos.y), Number(pos.z), 1, true, true, true);
-        }
-    },
-    false
-);
+const excuseMeWhileIKillMyself = async (source: number, args: string[], rawCommand: string): Promise<void> => {
+    SetEntityHealth(PlayerPedId(), 0);
+};
 
-RegisterCommand(
-    "nui",
-    async (source: number, args: string[], rawCommand: string) => {
-        SetNuiFocus(true, true);
-        await Delay(5000);
-        SetNuiFocus(false, false);
+const teleportado = async (source: number, args: string[], rawCommand: string): Promise<void> => {
+    args[0] = args[0].split(" ").join("");
 
-        LeaveCursorMode();
-    },
-    false
-);
+    const p = places.find((place) => place.name === args[0]) ?? null;
+    if (p) {
+        StartPlayerTeleport(PlayerId(), p.x, p.y, p.z, 1, true, true, true);
+    } else {
+        const [x = 0, y = 0, z = 0] = (args[0] || "").split(",");
+        const pos = { x, y, z };
+
+        StartPlayerTeleport(PlayerId(), Number(pos.x), Number(pos.y), Number(pos.z), 1, true, true, true);
+    }
+};
+
+RegisterCommand("nui", focusOnNui, false);
+RegisterCommand("c", spawnCar, false);
+RegisterCommand("want", assignWantedLevel, false);
+RegisterCommand("reset", resetSettings, false);
+RegisterCommand("g", spawnWeapon, false);
+RegisterCommand("dz", setCameraUndRemoveReticle, false);
+RegisterCommand("kys", excuseMeWhileIKillMyself, false);
+RegisterCommand("tp", teleportado, false);
+//RegisterCommand("acr", acr??? wtd was this supposed to be?, false);
+
+
 
 RegisterNuiCallbackType("nuiClicked");
 RegisterNuiCallbackType("gameClicked");
@@ -93,24 +103,10 @@ on("gameClicked", () => {
     SetNuiFocus(false, false);
 });
 
-RegisterCommand(
-    "gide",
-    async (source: number, args: string[], rawCommand: string) => {
-        SetHudColour(2, 0, 0, 0, 0);
-        SetHudComponentSize(14, 0, 0);
-
-        SetPlayerHealthRechargeMultiplier(PlayerId(), 0);
-        DisableIdleCamera(true);
-        SetFollowPedCamViewMode(4);
-    },
-    false
-);
-
 // let lastCamMode = 1;
 // let wasAiming = false;
 const camHandle = GetRenderingCam();
 const freecam = CreateCam("DEFAULT_SCRIPTED_CAMERA", false);
-
 
 setTick(() => {
     DisableControlAction(26, 0, true);
@@ -137,6 +133,10 @@ setTick(() => {
 
 // IsVehicleStolen();
 
+const currentVehicle = GetVehiclePedIsIn(PlayerPedId(), false);
+SetVehicleCanBreak(currentVehicle, true);
+SetVehicleReduceTraction(currentVehicle, 100);
+
 // on("INPUT_LOOK_RIGHT_ONLY", () => {
 //     if (IsAimCamThirdPersonActive()) {
 //         AddTextEntry("CUSTOM_ENTRY", "aiming babyy");
@@ -152,28 +152,6 @@ setTick(() => {
 //Disable the vehicle
 //Open NUI for vehicle minigame
 //Invent some kind of game that is FUNFUNFUN to play
-
-RegisterCommand(
-    "reset",
-    (source: number, args: string[], rawCommand: string) => {
-        AddTextEntry("CUSTOM_ENTRY", "Settings reseted");
-        BeginTextCommandDisplayHelp("CUSTOM_ENTRY");
-        EndTextCommandDisplayHelp(0, false, true, -1);
-
-        DestroyCam(freecam, true);
-    },
-    false
-);
-
-RegisterCommand(
-    "g",
-    async (source: number, args: string[], rawCommand: string) => {
-        const weaponName = `WEAPON_${args[0]}`;
-        const weaponHash = GetHashKey(weaponName);
-        GiveWeaponToPed(PlayerPedId(), weaponHash, 100, false, true);
-    },
-    false
-);
 
 on("CEventVehicleDamage", (name: string) => {
     AddTextEntry("CUSTOM_ENTRY", "vehicle damage");
@@ -209,27 +187,6 @@ on("CEventRanOverPed", (...args: any[]) => {
     emit("pedranover");
 });
 
-RegisterCommand(
-    "st",
-    async (source: number, args: string[], rawCommand: string) => {
-        SetGpsActive(true);
-        SetPlayerMaxStamina(PlayerId(), 1000);
-        0x733a643b5b0c53c1;
-    },
-    false
-);
-
-RegisterCommand(
-    "want",
-    async (source: number, args: string[], rawCommand: string) => {
-        GetPlayerFakeWantedLevel(PlayerId());
-        console.log(args);
-        const level: number = args.length > 0 ? Number(args[0]) : 0;
-        SetPlayerWantedLevel(PlayerId(), level, false);
-    },
-    false
-);
-
 setImmediate(() => {
     emit("chat:addSuggestion", "/greet", "Run this to say yo to other player", [
         {
@@ -244,7 +201,3 @@ setImmediate(() => {
         },
     ]);
 });
-
-// SendNUIMessage(JSON.stringify({
-//     type: 'open'
-// }))
