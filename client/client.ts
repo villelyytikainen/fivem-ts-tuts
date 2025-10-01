@@ -1,15 +1,10 @@
-import { log } from "node:console";
+import { once } from "events";
 import { places } from "./data/places";
-import { isNumberObject } from "node:util/types";
 
 const Delay = (time: number) => new Promise((resolve) => setTimeout(resolve, time));
 
 const waitForCar = async (hash: number) => {
     RequestModel(hash);
-
-    AddTextEntry("CUSTOM_ENTRY", "come on boyyy, lets wait for the car boyyy");
-    BeginTextCommandDisplayHelp("CUSTOM_ENTRY");
-    EndTextCommandDisplayHelp(0, false, true, -1);
     let count = 0;
     while (!HasModelLoaded(hash)) {
         await Delay(100);
@@ -40,9 +35,9 @@ RegisterCommand(
     "killme",
     () => {
         // PlayEntityAnim(PlayerPedId(),"idle","mp_sleep", 2,false,false,true, 2,0);
-        ClearPedTasks(PlayerPedId());
-        TaskPlayAnim(PlayerPedId(), "mp_suicide", "pill", 8.0, 8.0, -1, 128, 1, false, false, false);
-        // SetEntityHealth(PlayerPedId(), 0);
+        // ClearPedTasks(PlayerPedId());
+        // TaskPlayAnim(PlayerPedId(), "mp_suicide", "pill", 8.0, 8.0, -1, 128, 1, false, false, false);
+        SetEntityHealth(PlayerPedId(), 0);
     },
     false
 );
@@ -56,7 +51,6 @@ RegisterCommand(
         if (p) {
             StartPlayerTeleport(PlayerId(), p.x, p.y, p.z, 1, true, true, true);
         } else {
-
             const [x = 0, y = 0, z = 0] = (args[0] || "").split(",");
             const pos = { x, y, z };
 
@@ -72,7 +66,116 @@ RegisterCommand(
     false
 );
 
-on("CEventVehicleDamage", () => {
+RegisterCommand(
+    "nui",
+    async (source: number, args: string[], rawCommand: string) => {
+        SetNuiFocus(true, true);
+        await Delay(5000);
+        SetNuiFocus(false, false);
+
+        LeaveCursorMode();
+    },
+    false
+);
+
+RegisterNuiCallbackType("nuiClicked");
+RegisterNuiCallbackType("gameClicked");
+
+on("__cfx_nui:nuiClicked", () => {
+    AddTextEntry("CUSTOM_ENTRY", "nuiClicked");
+    BeginTextCommandDisplayHelp("CUSTOM_ENTRY");
+    EndTextCommandDisplayHelp(0, false, true, -1);
+
+    SetNuiFocus(true, true);
+});
+
+on("gameClicked", () => {
+    SetNuiFocus(false, false);
+});
+
+RegisterCommand(
+    "gide",
+    async (source: number, args: string[], rawCommand: string) => {
+        SetHudColour(2, 0, 0, 0, 0);
+        SetHudComponentSize(14, 0, 0);
+
+        SetPlayerHealthRechargeMultiplier(PlayerId(), 0);
+        DisableIdleCamera(true);
+        SetFollowPedCamViewMode(4);
+    },
+    false
+);
+
+// let lastCamMode = 1;
+// let wasAiming = false;
+const camHandle = GetRenderingCam();
+const freecam = CreateCam("DEFAULT_SCRIPTED_CAMERA", false);
+
+
+setTick(() => {
+    DisableControlAction(26, 0, true);
+    DisableControlAction(0, 0, true);
+
+    if (GetFollowPedCamViewMode() != 4) {
+        SetFollowPedCamViewMode(4);
+    }
+
+    if (IsControlPressed(0, 38) && !IsPedInAnyVehicle(PlayerPedId(), true)) {
+        SetCamActive(freecam, true);
+        RenderScriptCams(true, true, 2, true, true);
+        console.log(freecam);
+        SetCamRot(camHandle, 0, 200, 0, 5);
+    } else if (IsControlPressed(0, 44) && !IsPedInAnyVehicle(PlayerPedId(), true)) {
+        console.log("q");
+        SetCamRot(camHandle, 0, -200, 0, 5);
+    }
+
+    // if (IsControlPressed(0)) SetCamRot(0, 0, 0, 0, 1);
+});
+
+// ------VEHICLE PLAYGROUND -----
+
+// IsVehicleStolen();
+
+// on("INPUT_LOOK_RIGHT_ONLY", () => {
+//     if (IsAimCamThirdPersonActive()) {
+//         AddTextEntry("CUSTOM_ENTRY", "aiming babyy");
+//         BeginTextCommandDisplayHelp("CUSTOM_ENTRY");
+//         EndTextCommandDisplayHelp(0, false, true, -1);
+//         SetPlayerForcedAim(PlayerId(), true);
+//     }
+// })
+
+//Detect when player enters vehicle
+//Check vehicle ownership
+//IF vehicle is NOT owned -- Needs DB to check??
+//Disable the vehicle
+//Open NUI for vehicle minigame
+//Invent some kind of game that is FUNFUNFUN to play
+
+RegisterCommand(
+    "reset",
+    (source: number, args: string[], rawCommand: string) => {
+        AddTextEntry("CUSTOM_ENTRY", "Settings reseted");
+        BeginTextCommandDisplayHelp("CUSTOM_ENTRY");
+        EndTextCommandDisplayHelp(0, false, true, -1);
+
+        DestroyCam(freecam, true);
+    },
+    false
+);
+
+RegisterCommand(
+    "g",
+    async (source: number, args: string[], rawCommand: string) => {
+        const weaponName = `WEAPON_${args[0]}`;
+        const weaponHash = GetHashKey(weaponName);
+        GiveWeaponToPed(PlayerPedId(), weaponHash, 100, false, true);
+    },
+    false
+);
+
+on("CEventVehicleDamage", (name: string) => {
     AddTextEntry("CUSTOM_ENTRY", "vehicle damage");
     BeginTextCommandDisplayHelp("CUSTOM_ENTRY");
     EndTextCommandDisplayHelp(0, false, true, -1);
@@ -141,3 +244,7 @@ setImmediate(() => {
         },
     ]);
 });
+
+// SendNUIMessage(JSON.stringify({
+//     type: 'open'
+// }))
