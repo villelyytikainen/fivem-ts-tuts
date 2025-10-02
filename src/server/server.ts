@@ -1,4 +1,3 @@
-import { addListener } from "process";
 
 // RegisterCommand('greet', (source:number, args: string[]) => {
 //     const name = args[0];

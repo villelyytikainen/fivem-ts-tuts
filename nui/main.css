@@ -1,17 +1,24 @@
-.mynui{
-    width: 300px;
-    height: 100px;
+.mynui {
+    width: 220px;
+    height: 90px;
     position: fixed;
     top: 3.2vh;
-    left: 2vw;
+    right: 1vw;
     background-color: white;
-    opacity: 50%;
+    border: 2px solid black;
+    opacity: 85%;
+    transition-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition-duration: 1s;
 }
 
-.main-title{
-    color:black;
+.hidden {
+    right: -8.4vw;
+}
+
+.main-title {
+    color: black;
     margin: 0.4rem;
     font-size: 1.2rem;
-    font-family:'Courier New', Courier, monospace;
+    font-family: "Courier New", Courier, monospace;
     font-weight: 600;
 }

@@ -1,21 +1,99 @@
-import { once } from "events";
 import { places } from "./data/places";
 
 const Delay = (time: number) => new Promise((resolve) => setTimeout(resolve, time));
 
-const waitForCar = async (hash: number) => {
-    RequestModel(hash);
-    let count = 0;
-    while (!HasModelLoaded(hash)) {
-        await Delay(100);
-        console.log(count++);
-    }
+//Set chat suggestions and help for commands
+setImmediate(() => {
+    emit("chat:addSuggestion", "/greet", "Run this to say yo to other player", [
+        {
+            name: "name",
+            help: "name of the player you wanna oi at",
+        },
+    ]);
+    emit("chat:addSuggestion", "/tp", "Teleport to a wanted location", [
+        {
+            name: "name",
+            help: "location to teleport to [ls, pl, ch, gs, sa]",
+        },
+    ]);
+});
+
+// Disable buttons and force viewmode to 1st person
+// And maybe leaning at some point??
+
+type Position = { x: number; y: number; z: number };
+
+const getPlayerPosition = (): Position => {
+    const playerPed: number = PlayerPedId();
+    const [x, y, z]: number[] = GetEntityCoords(playerPed, true);
+    const pos: Position = {
+        x: x,
+        y: y,
+        z: z,
+    };
+
+    return pos;
 };
 
-const focusOnNui = async (source: number, args: string[], rawCommand: string) => {
-    SetNuiFocus(true, true);
-    await Delay(5000);
-    SetNuiFocus(false, false);
+let count = 0;
+let outCount = 0;
+
+const freecam = CreateCam("DEFAULT_SCRIPTED_CAMERA", false);
+
+type Rotation = {
+    roll: number;
+    pitch: number;
+    yaw: number;
+};
+
+setTick(() => {
+    if (!IsPedInAnyVehicle(PlayerPedId(), true)) {
+        SetFollowPedCamViewMode(4);
+        DisableControlAction(0, 0, true);
+        DisableControlAction(0, 26, true);
+    } else {
+        SetFollowPedCamViewMode(2);
+        EnableControlAction(0, 0, true);
+        DisableControlAction(0, 79, true);
+
+        if (GetFollowPedCamViewMode() != 4) {
+            ClampGameplayCamPitch(-20, 20);
+            ClampGameplayCamYaw(-20, 20);
+        }
+    }
+
+    if(IsControlJustPressed(0, 26)){
+        console.log("pressed")
+        SendNUIMessage({
+            type: "nui",
+            message: "hide"
+        })
+    }
+
+});
+const tolerance = 0.1;
+let lastPosition: Position = getPlayerPosition();
+
+setInterval(() => {
+    const newPosition = getPlayerPosition();
+    if (
+        Math.abs(newPosition.x - lastPosition.x) > tolerance ||
+        Math.abs(newPosition.y - lastPosition.y) > tolerance ||
+        Math.abs(newPosition.z - lastPosition.z) > tolerance
+    ) {
+        SendNUIMessage({
+            type: "position",
+            ...newPosition,
+        });
+        lastPosition = newPosition;
+    }
+}, 1000);
+
+const waitForCar = async (hash: number) => {
+    RequestModel(hash);
+    while (!HasModelLoaded(hash)) {
+        await Delay(100);
+    }
 };
 
 const spawnCar = async (source: number, args: string[], rawCommand: string): Promise<void> => {
@@ -64,7 +142,6 @@ const excuseMeWhileIKillMyself = async (source: number, args: string[], rawComma
 
 const teleportado = async (source: number, args: string[], rawCommand: string): Promise<void> => {
     args[0] = args[0].split(" ").join("");
-
     const p = places.find((place) => place.name === args[0]) ?? null;
     if (p) {
         StartPlayerTeleport(PlayerId(), p.x, p.y, p.z, 1, true, true, true);
@@ -76,7 +153,6 @@ const teleportado = async (source: number, args: string[], rawCommand: string): 
     }
 };
 
-RegisterCommand("nui", focusOnNui, false);
 RegisterCommand("c", spawnCar, false);
 RegisterCommand("want", assignWantedLevel, false);
 RegisterCommand("reset", resetSettings, false);
@@ -84,50 +160,6 @@ RegisterCommand("g", spawnWeapon, false);
 RegisterCommand("dz", setCameraUndRemoveReticle, false);
 RegisterCommand("kys", excuseMeWhileIKillMyself, false);
 RegisterCommand("tp", teleportado, false);
-//RegisterCommand("acr", acr??? wtd was this supposed to be?, false);
-
-
-
-RegisterNuiCallbackType("nuiClicked");
-RegisterNuiCallbackType("gameClicked");
-
-on("__cfx_nui:nuiClicked", () => {
-    AddTextEntry("CUSTOM_ENTRY", "nuiClicked");
-    BeginTextCommandDisplayHelp("CUSTOM_ENTRY");
-    EndTextCommandDisplayHelp(0, false, true, -1);
-
-    SetNuiFocus(true, true);
-});
-
-on("gameClicked", () => {
-    SetNuiFocus(false, false);
-});
-
-// let lastCamMode = 1;
-// let wasAiming = false;
-const camHandle = GetRenderingCam();
-const freecam = CreateCam("DEFAULT_SCRIPTED_CAMERA", false);
-
-setTick(() => {
-    DisableControlAction(26, 0, true);
-    DisableControlAction(0, 0, true);
-
-    if (GetFollowPedCamViewMode() != 4) {
-        SetFollowPedCamViewMode(4);
-    }
-
-    if (IsControlPressed(0, 38) && !IsPedInAnyVehicle(PlayerPedId(), true)) {
-        SetCamActive(freecam, true);
-        RenderScriptCams(true, true, 2, true, true);
-        console.log(freecam);
-        SetCamRot(camHandle, 0, 200, 0, 5);
-    } else if (IsControlPressed(0, 44) && !IsPedInAnyVehicle(PlayerPedId(), true)) {
-        console.log("q");
-        SetCamRot(camHandle, 0, -200, 0, 5);
-    }
-
-    // if (IsControlPressed(0)) SetCamRot(0, 0, 0, 0, 1);
-});
 
 // ------VEHICLE PLAYGROUND -----
 
@@ -137,21 +169,30 @@ const currentVehicle = GetVehiclePedIsIn(PlayerPedId(), false);
 SetVehicleCanBreak(currentVehicle, true);
 SetVehicleReduceTraction(currentVehicle, 100);
 
-// on("INPUT_LOOK_RIGHT_ONLY", () => {
-//     if (IsAimCamThirdPersonActive()) {
-//         AddTextEntry("CUSTOM_ENTRY", "aiming babyy");
-//         BeginTextCommandDisplayHelp("CUSTOM_ENTRY");
-//         EndTextCommandDisplayHelp(0, false, true, -1);
-//         SetPlayerForcedAim(PlayerId(), true);
-//     }
-// })
-
 //Detect when player enters vehicle
 //Check vehicle ownership
-//IF vehicle is NOT owned -- Needs DB to check??
+//IF vehicle is NOT owned
 //Disable the vehicle
 //Open NUI for vehicle minigame
 //Invent some kind of game that is FUNFUNFUN to play
+
+// ------ EVENTS ------
+
+RegisterNuiCallbackType("nuiClicked");
+RegisterNuiCallbackType("gameClicked");
+
+on("__cfx_nui:nuiClicked", () => {
+    AddTextEntry("CUSTOM_ENTRY", "nuiClicked");
+    BeginTextCommandDisplayHelp("CUSTOM_ENTRY");
+    EndTextCommandDisplayHelp(0, false, true, -1);
+});
+
+on("gameClicked", () => {
+    SetNuiFocus(false, false);
+});
+
+// let lastCamMode = 1;
+// let wasAiming = false;
 
 on("CEventVehicleDamage", (name: string) => {
     AddTextEntry("CUSTOM_ENTRY", "vehicle damage");
@@ -185,19 +226,4 @@ on("CEventRanOverPed", (...args: any[]) => {
     console.log(args);
 
     emit("pedranover");
-});
-
-setImmediate(() => {
-    emit("chat:addSuggestion", "/greet", "Run this to say yo to other player", [
-        {
-            name: "name",
-            help: "name of the player you wanna oi at",
-        },
-    ]);
-    emit("chat:addSuggestion", "/tp", "Teleport to a wanted location", [
-        {
-            name: "name",
-            help: "location to teleport to [ls, pl, ch, gs, sa]",
-        },
-    ]);
 });
