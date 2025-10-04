@@ -1,4 +1,4 @@
-export interface Place {
+export type Place ={
     name: string;
     x: number;
     y: number;

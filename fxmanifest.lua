@@ -19,6 +19,7 @@ ui_page 'nui/main.html'
 -- every client-side file still needs to be added to the resource packfile!
 files {
     'nui/main.html',
-    'nui/main.js',
-    'nui/main.css'
+    'nui/main.css',
+    'nui/main.js'
+
 }
